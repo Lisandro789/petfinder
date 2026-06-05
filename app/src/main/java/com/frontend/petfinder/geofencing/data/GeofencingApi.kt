@@ -1,0 +1,250 @@
+package com.frontend.petfinder.geofencing.data
+
+import com.google.gson.annotations.SerializedName
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.HTTP
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+// =============================================================================
+// DTOs COMPARTIDOS Y DEL MAPA PRINCIPAL (Snapshot)
+// =============================================================================
+
+data class PointDto(val lat: Double, val lng: Double)
+
+// Hecho nullable (?) para evitar crashes si el backend no lo envía
+data class GeometryDto(
+    val type: String? = null,
+    val coordinates: List<List<List<Double>>>? = emptyList()
+)
+
+data class ColaboradorDto(
+    val personaId: String,
+    val nombre: String,
+    val apellidoPaterno: String? = null,
+    val fotoUrl: String?,
+    val ubicacion: PointDto
+)
+
+data class DesaparecidaDto(
+    val reporteId: Int,
+    val mascotaId: String,
+    val nombre: String,
+    val tipo: String,
+    val fotoUrl: String?,
+    val ubicacion: PointDto,
+    val fechaPerdida: String? = null,
+    val recompensa: Double? = null,
+    val alertaComunidad: AlertaComunidadDto? = null
+)
+
+// Estado de la alerta comunitaria de una mascota perdida (botón "Pedir ayuda")
+data class AlertaComunidadDto(
+    @SerializedName("activa") val activa: Boolean = false,
+    @SerializedName("expiraEl") val expiraEl: String? = null
+)
+
+data class MyPetMarkerDto(
+    val mascotaId: String,
+    val nombre: String,
+    val estado: String,
+    val tipo: String,
+    val fotoUrl: String?,
+    val ubicacion: PointDto? = null,
+    val recompensa: Double? = null
+)
+
+data class ZonePetDto(
+    val mascotaId: String,
+    val nombre: String,
+    val estado: String,
+    val fotoUrl: String?,
+    val ubicacion: PointDto? = null
+)
+
+data class LostPetMarkerDto(
+    @SerializedName("mascotaId") val mascotaId: String,
+    @SerializedName("nombre") val nombre: String,
+    @SerializedName("tipo") val tipo: String,
+    @SerializedName("fotoUrl") val fotoUrl: String?,
+    @SerializedName("ubicacion") val ubicacion: PointDto,
+    @SerializedName("fechaPerdida") val fechaPerdida: String? = null,
+    @SerializedName("recompensa") val recompensa: Double? = null,
+    @SerializedName("alertaComunidad") val alertaComunidad: AlertaComunidadDto? = null
+)
+
+data class MapSnapshotResponse(
+    val misMascotas: List<MyPetMarkerDto>,
+    val colaboradores: List<ColaboradorDto>,
+    val desaparecidas: List<DesaparecidaDto>,
+    val zonas: List<ZoneDto>
+)
+
+// =============================================================================
+// DTOs PARA ZONAS SEGURAS (Geovallas)
+// =============================================================================
+
+// Este modelo sirve tanto para el Snapshot del mapa como para el detalle de la zona.
+data class ZoneDto(
+    val zonaId: Int,
+    val nombre: String? = null,
+    val nombreZona: String? = null,
+    val tipo: String? = null,
+    val centro: PointDto? = null,
+    val radioMetros: Double? = null,
+    val geometria: GeometryDto? = null,
+    val estaActiva: Boolean? = null,
+    val estado: String? = null,
+    val mascotas: List<ZonePetDto>? = null,
+    val mascotaIds: List<String>? = null
+)
+
+// --- NUEVOS DTOs PARA GET /geofencing/zones (Snake Case) ---
+
+data class ZonePetDetailDto(
+    @SerializedName("mascota_id") val mascotaId: String,
+    @SerializedName("nombre") val nombre: String,
+    @SerializedName("estado") val estado: String,
+    @SerializedName("tipo_mascota") val tipoMascota: String
+)
+
+data class ZoneWithPetsDto(
+    @SerializedName("zona_id") val zonaId: Int,
+    @SerializedName("nombre_zona") val nombreZona: String?,
+    @SerializedName("tipo") val tipo: String?,
+    @SerializedName("radio_metros") val radioMetros: Double?,
+    @SerializedName("esta_activa") val estaActiva: Boolean?,
+    @SerializedName("centro_lat") val centroLat: Double?,
+    @SerializedName("centro_lng") val centroLng: Double?,
+    @SerializedName("mascotas") val mascotas: List<ZonePetDetailDto>? = emptyList()
+)
+
+// Body para POST/DELETE /geofencing/zones/{id}/pets
+data class ZonePetsRequest(
+    @SerializedName("mascotaIds") val mascotaIds: List<String>
+)
+
+// --- DTOs PARA ENVIAR Y ACTUALIZAR DATOS ---
+
+// DTO para ENVIAR una nueva zona al servidor
+data class CreateZoneRequest(
+    val nombreZona: String,
+    val tipo: String, // "circulo" o "poligono"
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val radioMetros: Double? = null,
+    val coordenadas: List<PointDto>? = null,
+    val mascotaIds: List<String>? = null
+)
+
+// DTO para ACTUALIZAR una zona existente
+data class UpdateZoneRequest(
+    val nombreZona: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val radioMetros: Double? = null,
+    val coordenadas: List<PointDto>? = null,
+    val estaActiva: Boolean? = null
+)
+
+data class DeleteZoneResponse(
+    val message: String
+)
+
+// =============================================================================
+// INTERFAZ DE LA API (Retrofit)
+// =============================================================================
+
+interface GeofencingApi {
+
+    // -------------------------------------------------------------------------
+    // 1. MAPA PRINCIPAL
+    // -------------------------------------------------------------------------
+    @GET("map/snapshot")
+    suspend fun getMapSnapshot(
+        @Query("tipoId") tipoId: Int? = null
+    ): Response<MapSnapshotResponse>
+
+    @GET("map/public/lost-pets")
+    suspend fun getPublicLostPets(
+        @Query("tipoId") tipoId: Int? = null
+    ): Response<List<LostPetMarkerDto>>
+
+    // Card de detalle al tocar un pin de mascota (propia, compartida o de la comunidad)
+    @GET("map/pets/{mascotaId}")
+    suspend fun getMapPetCard(
+        @Path("mascotaId") mascotaId: String
+    ): Response<MapPetCardDto>
+
+    // Card de detalle al tocar el pin de un colaborador
+    @GET("map/collaborators/{personaId}")
+    suspend fun getMapCollaboratorCard(
+        @Path("personaId") personaId: String
+    ): Response<MapCollaboratorCardDto>
+
+    // -------------------------------------------------------------------------
+    // 2. GESTIÓN DE GEOVALLAS (Zonas Seguras)
+    // -------------------------------------------------------------------------
+
+    // Crear una nueva zona para una mascota
+    @POST("geofencing/pets/{petId}/zones")
+    suspend fun createZone(
+        @Path("petId") petId: String,
+        @Body request: CreateZoneRequest
+    ): Response<ZoneDto>
+
+    // Listar todas las zonas de una mascota específica
+    @GET("geofencing/pets/{petId}/zones")
+    suspend fun getPetZones(
+        @Path("petId") petId: String
+    ): Response<List<ZoneDto>>
+
+    // ¡NUEVO ENDPOINT GLOBAL PARA LA PANTALLA DE ZONAS!
+    @GET("geofencing/zones")
+    suspend fun getAllUserZones(): Response<List<ZoneWithPetsDto>>
+
+    // Obtener el detalle de una zona
+    @GET("geofencing/zones/{id}")
+    suspend fun getZoneDetail(
+        @Path("id") zonaId: Int
+    ): Response<ZoneWithPetsDto>
+
+    // Agregar mascotas a una zona
+    @POST("geofencing/zones/{id}/pets")
+    suspend fun addPetsToZone(
+        @Path("id") zonaId: Int,
+        @Body request: ZonePetsRequest
+    ): Response<ZoneWithPetsDto>
+
+    // Reemplazar lista completa de mascotas en una zona
+    @PUT("geofencing/zones/{id}/pets")
+    suspend fun replacePetsInZone(
+        @Path("id") zonaId: Int,
+        @Body request: ZonePetsRequest
+    ): Response<ZoneWithPetsDto>
+
+    // Quitar mascotas de una zona (DELETE con body requiere @HTTP)
+    @HTTP(method = "DELETE", path = "geofencing/zones/{id}/pets", hasBody = true)
+    suspend fun removePetsFromZone(
+        @Path("id") zonaId: Int,
+        @Body request: ZonePetsRequest
+    ): Response<Map<String, String>>
+
+    // Actualizar una zona (renombrar, cambiar radio, editar vértices, encender/apagar)
+    @PUT("geofencing/zones/{id}")
+    suspend fun updateZone(
+        @Path("id") zonaId: Int,
+        @Body request: UpdateZoneRequest
+    ): Response<Any> // Usamos Any porque solo nos importa si es 200 OK
+
+    // Eliminar la geovalla
+    @DELETE("geofencing/zones/{id}")
+    suspend fun deleteZone(
+        @Path("id") zonaId: Int
+    ): Response<DeleteZoneResponse>
+}

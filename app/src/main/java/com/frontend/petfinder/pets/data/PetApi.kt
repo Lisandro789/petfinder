@@ -1,0 +1,168 @@
+package com.frontend.petfinder.pets.data
+
+import com.frontend.petfinder.pets.data.dto.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.Response
+import retrofit2.http.*
+
+interface PetApi {
+
+    // --- Tipos de mascota ---
+
+    @GET("tipos-mascota")
+    suspend fun getTiposMascota(): Response<List<TipoMascotaDto>>
+
+    // --- CRUD de mascotas ---
+
+    @Multipart
+    @POST("pets")
+    suspend fun registerPet(
+        @Part("nombre") nombre: RequestBody,
+        @Part("tipoId") tipoId: RequestBody?,
+        @Part("sexo") sexo: RequestBody?,
+        @Part("colorPrimario") colorPrimario: RequestBody?,
+        @Part("rasgosParticulares") rasgosParticulares: RequestBody?,
+        @Part("fotoPrincipalIndex") fotoPrincipalIndex: RequestBody?,
+        @Part fotos: List<MultipartBody.Part>?
+    ): Response<RegisterPetResponse>
+
+    @GET("pets")
+    suspend fun getMyPets(): Response<List<PetListItemDto>>
+
+    @GET("pets/{id}")
+    suspend fun getPetDetail(@Path("id") petId: String): Response<PetDetailDto>
+
+    @PUT("pets/{id}")
+    suspend fun updatePet(
+        @Path("id") petId: String,
+        @Body request: UpdatePetRequest
+    ): Response<PetListItemDto>
+
+    @DELETE("pets/{id}")
+    suspend fun deletePet(@Path("id") petId: String): Response<Map<String, String>>
+
+    // --- QR ---
+
+    @GET("pets/{id}/qr")
+    suspend fun getPetQrCode(
+        @Path("id") petId: String,
+        @Query("size") size: Int? = null
+    ): Response<ResponseBody>
+
+    @GET("pets/public/{token}")
+    suspend fun getPublicPetCard(@Path("token") token: String): Response<PublicPetCardDto>
+
+    @POST("pets/public/{token}/scan")
+    suspend fun registerQrScan(
+        @Path("token") token: String,
+        @Body request: QrScanRequest
+    ): Response<PetScanDto>
+
+    // --- Estado y ubicación ---
+
+    @PUT("pets/{id}/status")
+    suspend fun updatePetStatus(
+        @Path("id") petId: String,
+        @Body request: UpdateStatusRequest
+    ): Response<Any>
+
+    @PUT("pets/{id}/location")
+    suspend fun updatePetLocation(
+        @Path("id") petId: String,
+        @Body request: UpdateLocationRequest
+    ): Response<Map<String, String>>
+
+    // --- Fotos ---
+
+    @Multipart
+    @POST("pets/{id}/photos")
+    suspend fun addPetPhotos(
+        @Path("id") petId: String,
+        @Part("fotoPrincipalIndex") fotoPrincipalIndex: RequestBody?,
+        @Part fotos: List<MultipartBody.Part>
+    ): Response<List<FotoMascotaDto>>
+
+    @Multipart
+    @PUT("pets/{id}/photos/replace")
+    suspend fun replacePetPhotos(
+        @Path("id") petId: String,
+        @Part("fotoPrincipalIndex") fotoPrincipalIndex: RequestBody?,
+        @Part fotos: List<MultipartBody.Part>
+    ): Response<List<FotoMascotaDto>>
+
+    @PUT("pets/{id}/photos/{fotoId}/principal")
+    suspend fun setPrincipalPhoto(
+        @Path("id") petId: String,
+        @Path("fotoId") fotoId: Int
+    ): Response<SetPrincipalResponse>
+
+    @DELETE("pets/{id}/photos/{fotoId}")
+    suspend fun deletePetPhoto(
+        @Path("id") petId: String,
+        @Path("fotoId") fotoId: Int
+    ): Response<Map<String, String>>
+
+    // --- Co-propietarios ---
+
+    @POST("pets/{id}/owners")
+    suspend fun addPetOwner(
+        @Path("id") petId: String,
+        @Body request: AddOwnerRequest
+    ): Response<PetOwnerRelationDto>
+
+    @DELETE("pets/{id}/owners/{personaId}")
+    suspend fun removePetOwner(
+        @Path("id") petId: String,
+        @Path("personaId") personaId: String
+    ): Response<Map<String, String>>
+
+    // --- Recompensa del reporte activo ---
+
+    @PUT("pets/{id}/report/reward")
+    suspend fun updateReward(
+        @Path("id") petId: String,
+        @Body request: UpdateRewardRequest
+    ): Response<UpdateRewardResponse>
+
+    // --- Alertas comunitarias ---
+
+    @POST("pets/{id}/alert/community")
+    suspend fun sendCommunityAlert(
+        @Path("id") petId: String,
+        @Body request: CommunityAlertRequest
+    ): Response<CommunityAlertResponse>
+
+    // --- Historial QR y reportes ---
+
+    @GET("pets/{id}/scans")
+    suspend fun getPetScans(@Path("id") petId: String): Response<List<PetScanDto>>
+
+    @GET("pets/{id}/reports")
+    suspend fun getPetReports(@Path("id") petId: String): Response<List<PetReportDto>>
+
+    // --- Historial médico ---
+
+    @GET("pets/{id}/medical")
+    suspend fun getMedicalRecords(@Path("id") petId: String): Response<List<MedicalRecordDto>>
+
+    @POST("pets/{id}/medical")
+    suspend fun createMedicalRecord(
+        @Path("id") petId: String,
+        @Body request: CreateMedicalRecordRequest
+    ): Response<MedicalRecordDto>
+
+    @PUT("pets/{id}/medical/{registroId}")
+    suspend fun updateMedicalRecord(
+        @Path("id") petId: String,
+        @Path("registroId") registroId: Int,
+        @Body request: UpdateMedicalRecordRequest
+    ): Response<MedicalRecordDto>
+
+    @DELETE("pets/{id}/medical/{registroId}")
+    suspend fun deleteMedicalRecord(
+        @Path("id") petId: String,
+        @Path("registroId") registroId: Int
+    ): Response<Map<String, String>>
+}
